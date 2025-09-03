@@ -1,4 +1,4 @@
-import type {Channel, StreamChat, User} from 'stream-chat';
+import type { Channel, StreamChat, User } from 'stream-chat';
 
 export interface AIAgent {
     user?: User;
@@ -13,6 +13,7 @@ export interface AIAgent {
 export enum AgentPlatform {
     OPENAI = "openai",
     WRITING_ASSISTANT = "writing_assistant",
+    GEMINI = "gemini",
 }
 
 export interface WritingMessage {

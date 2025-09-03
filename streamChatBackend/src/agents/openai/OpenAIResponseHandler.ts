@@ -133,6 +133,8 @@ export class OpenAIResponseHandler {
             });
             await this.dispose();
         }
+
+        // we'll work on this later
         // await this.chatClient.partialUpdateMessage(this.message.id, {
         //     set: {
         //         text: this.message_text + "\n\n*Response generation cancelled.*",
