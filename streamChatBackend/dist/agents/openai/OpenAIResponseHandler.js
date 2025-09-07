@@ -15,7 +15,76 @@ class OpenAIResponseHandler {
         this.run_id = "";
         this.is_done = false;
         this.last_update_time = 0;
-        this.run = async () => { };
+        this.run = async () => {
+            const { cid, id: message_id } = this.message;
+            let isCompleted = false;
+            let toolOutputs = [];
+            let currentStream = this.assistantStream;
+            try {
+                while (!isCompleted) {
+                    for await (const event of currentStream) {
+                        this.handleStreamEvent(event);
+                        if (event.event === "thread.run.requires_action" &&
+                            event.data.required_action?.type === "submit_tool_outputs") {
+                            this.run_id = event.data.id;
+                            await this.channel.sendEvent({
+                                type: "ai_indicator.update",
+                                ai_state: "AI_STATE_EXTERNAL_SOURCES",
+                                cid: cid,
+                                message_id: message_id,
+                            });
+                            const toolCalls = event.data.required_action.submit_tool_outputs.tool_calls;
+                            toolOutputs = [];
+                            for (const toolCall of toolCalls) {
+                                if (toolCall.function.name === "web_search") {
+                                    try {
+                                        const args = JSON.parse(toolCall.function.arguments);
+                                        const searchResult = await this.performWebSearch(args.query);
+                                        toolOutputs.push({
+                                            tool_calls_id: toolCall.id,
+                                            output: searchResult,
+                                        });
+                                    }
+                                    catch (e) {
+                                        console.error("Error performing web search:", e);
+                                        toolOutputs.push({
+                                            tool_call_id: toolCall.id,
+                                            output: JSON.stringify({ error: "failed to call tool" }),
+                                        });
+                                    }
+                                }
+                            }
+                            break; // exit the for-await loop to submit tool outputs
+                        }
+                        if (event.event === "thread.run.completed") {
+                            isCompleted = true;
+                            break;
+                        }
+                        if (event.event === "thread.run.failed") {
+                            isCompleted = true;
+                            await this.handelError(new Error(event.data.last_error?.message ?? "Run failed"));
+                            break; // Exit the inner loop
+                        }
+                    }
+                    if (isCompleted) {
+                        break; // exit the while loop
+                    }
+                    if (toolOutputs.length > 0) {
+                        currentStream = this.openai.beta.threads.runs.submitToolOutputsStream(this.run_id, { thread_id: this.openAiThread.id, tool_outputs: toolOutputs });
+                        toolOutputs = []; // Reset tool outputs
+                    }
+                }
+            }
+            catch (error) {
+                // Handle any errors that occur during streaming
+                // this.handelError(new Error("Error during OpenAI stream processing"));
+                console.error("An error occured during OpenAI stream processing", error);
+                await this.handelError(error);
+            }
+            finally {
+                await this.dispose();
+            }
+        };
         this.dispose = async () => {
             if (this.is_done) {
                 return;
@@ -48,6 +117,7 @@ class OpenAIResponseHandler {
                 });
                 await this.dispose();
             }
+            // we'll work on this later
             // await this.chatClient.partialUpdateMessage(this.message.id, {
             //     set: {
             //         text: this.message_text + "\n\n*Response generation cancelled.*",
@@ -62,7 +132,51 @@ class OpenAIResponseHandler {
             // });
             // await this.dispose();
         };
-        this.handleStreamEvent = async (event) => { };
+        this.handleStreamEvent = async (event) => {
+            const { cid, id } = this.message;
+            if (event.event === "thread.run.created") {
+                this.run_id = event.data.id;
+            }
+            else if (event.event === "thread.message.delta") {
+                const textDelta = event.data.delta.content?.[0];
+                if (textDelta?.type === "text" && textDelta.text) {
+                    this.message.text += textDelta.text.value || "";
+                    const now = Date.now();
+                    if (now - this.last_update_time > 1000) {
+                        // make it await if required
+                        this.chatClient.partialUpdateMessage(id, {
+                            set: { text: this.message_text }
+                        });
+                        this.last_update_time = now;
+                    }
+                    this.chunk_counter += 1;
+                }
+            }
+            else if (event.event === "thread.message.completed") {
+                this.chatClient.partialUpdateMessage(id, {
+                    set: {
+                        text: event.data.content[0].type === "text"
+                            ? event.data.content[0].text.value
+                            : this.message_text,
+                    }
+                });
+                this.channel.sendEvent({
+                    type: "ai_indicator.clear",
+                    cid: cid,
+                    message_id: id,
+                });
+            }
+            else if (event.event === "thread.run.step.created") {
+                if (event.data.step_details.type === "message_creation") {
+                    this.channel.sendEvent({
+                        type: "ai_indicator.update",
+                        ai_state: "AI_STATE_GENERATING",
+                        cid: cid,
+                        message_id: id,
+                    });
+                }
+            }
+        };
         this.handelError = async (error) => {
             if (this.is_done) {
                 return;

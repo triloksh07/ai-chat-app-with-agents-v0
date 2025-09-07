@@ -119,7 +119,7 @@ export class GeminiResponseHandler {
 
             // Get the complete, updated history from the agent before making the next call
             const updatedHistory = this.getChatHistory();
-            const result = await model.generateContentStream(updatedHistory);
+            const result = await model.generateContentStream({contents: updatedHistory});
 
             // Process the *second* stream which contains the final text answer
             await this.processStream(result.stream);

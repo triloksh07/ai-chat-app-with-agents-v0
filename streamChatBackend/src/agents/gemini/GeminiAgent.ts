@@ -56,7 +56,7 @@ export class GeminiAgent implements AIAgent {
         };
         // Instead of creating a persistent "assistant", we configure a model
         this.model = this.genAI.getGenerativeModel({
-            model: "gemini-pro",
+            model: "gemini-2.0-flash",
             // The system prompt is passed as a systemInstruction
             systemInstruction: this.getWritingAssistantPrompt(),
             tools: [webSearchTool],
