@@ -187,7 +187,7 @@ export class GeminiResponseHandler {
                     api_key: TAVILY_API_KEY,
                     query: query,
                     search_depth: "advanced",
-                    max_results: 3,
+                    max_results: 5,
                     include_answer: true,
                 }),
             });

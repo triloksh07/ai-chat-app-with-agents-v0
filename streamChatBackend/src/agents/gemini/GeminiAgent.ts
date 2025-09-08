@@ -31,7 +31,8 @@ export class GeminiAgent implements AIAgent {
     getLastInteraction = (): number => this.lastInteractionTs;
 
     init = async (): Promise<void> => {
-        const apiKey = process.env.GOOGLE_API_KEY as string | undefined;
+        
+        const apiKey = process.env.GEMINI_API_KEY as string | undefined;
         if (!apiKey) {
             throw new Error("Google API key is required");
         }
