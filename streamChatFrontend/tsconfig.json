@@ -16,6 +16,7 @@
     "noUnusedLocals": false,
     "strictNullChecks": false,
     "forceConsistentCasingInFileNames":true,
-    "strict": true
+    "strict": true,
+    "noEmit": true
   }
 }
