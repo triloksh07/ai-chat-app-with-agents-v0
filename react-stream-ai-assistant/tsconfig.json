@@ -17,6 +17,6 @@
     "strictNullChecks": false,
     "forceConsistentCasingInFileNames":true,
     "strict": true,
-    "noEmit": true
+    "noEmit": false
   }
 }
