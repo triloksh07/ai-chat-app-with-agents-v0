@@ -4,7 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App.tsx";
 import "./index.css";
 import { ThemeProvider } from "./providers/theme-provider.tsx";
-import { Analytics } from '@vercel/analytics/next';
+import { Analytics } from '@vercel/analytics/react';
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
