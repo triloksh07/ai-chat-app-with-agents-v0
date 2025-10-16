@@ -5,7 +5,7 @@ A modern AI-powered chat application built with **Stream Chat**, **OpenAI**, and
 ## 🚀 Features
 
 - **Real-time Chat**: Powered by [GetStream.io](https://getstream.io) for seamless messaging
-- **AI Writing Assistant**: OpenAI GPT-4 integration for intelligent content generation
+- **AI Writing Assistant**: OpenAI GPT-4 and Gemini integration for intelligent content generation
 - **Web Search**: Live web search capabilities using Tavily API for current information
 - **Modern UI**: Beautiful React interface with dark/light theme support
 - **Writing Prompts**: Categorized writing prompts for business, content, communication, and creative tasks
@@ -283,7 +283,7 @@ npm run build
 - **Node.js** - Runtime environment
 - **Express** - Web framework
 - **Stream Chat** - Real-time messaging
-- **OpenAI** - AI language model
+- **OpenAI & GEMINI** - AI language model
 - **Axios** - HTTP client
 - **CORS** - Cross-origin resource sharing
 - **TypeScript** - Type safety
