@@ -31,7 +31,7 @@ export class GeminiAgent implements AIAgent {
     getLastInteraction = (): number => this.lastInteractionTs;
 
     init = async (): Promise<void> => {
-        
+
         const apiKey = process.env.GEMINI_API_KEY as string | undefined;
         if (!apiKey) {
             throw new Error("Google API key is required");
@@ -57,7 +57,8 @@ export class GeminiAgent implements AIAgent {
         };
         // Instead of creating a persistent "assistant", we configure a model
         this.model = this.genAI.getGenerativeModel({
-            model: "gemini-2.0-flash",
+            // model: "gemini-2.0-flash",
+            model: "gemini-2.5-flash-lite",
             // The system prompt is passed as a systemInstruction
             systemInstruction: this.getWritingAssistantPrompt(),
             tools: [webSearchTool],
@@ -133,22 +134,82 @@ Your goal is to provide accurate, current, and helpful written content. Failure 
         const chat = this.model.startChat({
             history: this.chatHistory,
         });
-        // Send the latest message and get a streaming response
-        const result = await chat.sendMessageStream(message);
 
-        const handler = new GeminiResponseHandler(
-            this.genAI as GoogleGenerativeAI, // 1. Pass the genAI client instance
-            result.stream,
-            this.chatClient,
-            this.channel,
-            channelMessage,
-            () => this.chatHistory, // 2. Pass a function to GET the full history
-            // Pass a callback to append the model's response to our history
-            (modelResponse) => this.chatHistory.push(modelResponse), // 3. Pass a function to APPEND to history
-            () => this.removeHandler(handler)
-        );
-        this.handlers.push(handler);
-        void handler.run();
+        const MAX_RETRIES = 3;
+        let attempt = 0;
+        let success = false;
+
+        while (attempt < MAX_RETRIES && !success) {
+            try {
+                // Send the latest message and get a streaming response
+                const result = await chat.sendMessageStream(message);
+
+                const handler = new GeminiResponseHandler(
+                    this.genAI as GoogleGenerativeAI,
+                    result.stream,
+                    this.chatClient,
+                    this.channel,
+                    channelMessage,
+                    () => this.chatHistory,
+                    (modelResponse) => this.chatHistory.push(modelResponse),
+                    () => this.removeHandler(handler)
+                );
+                this.handlers.push(handler);
+                void handler.run();
+
+                success = true;
+
+            } catch (error: any) {
+                // Check for 429 (Too Many Requests) or 503 (Service Unavailable)
+                if (error.status === 429 || error.status === 503) {
+                    attempt++;
+                    const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+                    console.warn(`[GeminiAgent] Rate limit hit. Retrying in ${delay}ms... (Attempt ${attempt}/${MAX_RETRIES})`);
+
+                    if (attempt === MAX_RETRIES) {
+                        console.error("[GeminiAgent] Max retries exceeded. Aborting.");
+                        // [FIX 3] Graceful User Notification
+                        await this.channel.sendEvent({
+                            type: "ai_indicator.update",
+                            ai_state: "AI_STATE_IDLE", // Stop the spinner
+                            cid: channelMessage.cid,
+                            message_id: channelMessage.id,
+                        });
+                        await this.chatClient.updateMessage({
+                            id: channelMessage.id,
+                            text: "⚠️ System is currently overloaded (Rate Limit Exceeded). Please try again in a few moments.",
+                            ai_generated: true
+                        });
+                    } else {
+                        // Wait before retrying
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                } else {
+                    // Critical error (not a rate limit), log it and don't retry
+                    console.error("[GeminiAgent] Critical Error:", error);
+                    break;
+                }
+            }
+        }
+
+        /*        old code
+        *        // Send the latest message and get a streaming response
+                const result = await chat.sendMessageStream(message);
+        
+                const handler = new GeminiResponseHandler(
+                    this.genAI as GoogleGenerativeAI, // 1. Pass the genAI client instance
+                    result.stream,
+                    this.chatClient,
+                    this.channel,
+                    channelMessage,
+                    () => this.chatHistory, // 2. Pass a function to GET the full history
+                    // Pass a callback to append the model's response to our history
+                    (modelResponse) => this.chatHistory.push(modelResponse), // 3. Pass a function to APPEND to history
+                    () => this.removeHandler(handler)
+                );
+                this.handlers.push(handler);
+                void handler.run();
+                */
     }
 
     private removeHandler = (handlerToRemove: GeminiResponseHandler) => {
