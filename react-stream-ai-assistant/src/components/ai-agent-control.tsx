@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { AgentStatus } from "@/hooks/use-ai-agent-status";
+import { type AgentStatus } from "@/hooks/use-ai-agent-status";
 import { AlertCircle, Bot, BotOff, Loader2, RotateCcw } from "lucide-react";
 import React from "react";
 

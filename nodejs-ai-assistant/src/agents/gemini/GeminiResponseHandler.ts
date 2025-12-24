@@ -107,7 +107,7 @@ export class GeminiResponseHandler {
             // NOTE: This requires a way to access the agent's history or passing it in.
             // For now, let's assume we can get it from the model instance passed to the constructor.
             // const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-            const model = this.genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+            const model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
             // Start a new chat with the updated history including the tool output
             // If we tried to reuse the existing stream, it would be done.
